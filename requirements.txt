@@ -1,0 +1,12 @@
+numpy>=1.24
+scipy>=1.11
+pandas>=2.0
+matplotlib>=3.7
+gymnasium>=0.29
+torch>=2.0
+cvxpy>=1.4
+pennylane>=0.36
+tianshou>=1.1
+pettingzoo>=1.24
+tqdm>=4.65
+seaborn>=0.12

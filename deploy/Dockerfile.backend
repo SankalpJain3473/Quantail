@@ -1,0 +1,62 @@
+# deploy/Dockerfile.backend
+# Multi-stage build for minimal production image
+
+# ── Stage 1: Builder ─────────────────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies first (layer caching)
+COPY requirements.txt requirements-backend.txt ./
+RUN pip install --user --no-cache-dir -r requirements-backend.txt
+
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+# Security: run as non-root user
+RUN groupadd -r quantail && useradd -r -g quantail quantail
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/quantail/.local
+
+# Copy application code
+COPY backend/ ./backend/
+COPY envs/ ./envs/
+COPY agents/ ./agents/
+COPY quantum/ ./quantum/
+COPY risk/ ./risk/
+COPY coordinator/ ./coordinator/
+COPY evaluation/ ./evaluation/
+COPY trading/ ./trading/
+COPY __init__.py ./
+
+# Create logs directory
+RUN mkdir -p /app/logs && chown -R quantail:quantail /app
+
+# Switch to non-root user
+USER quantail
+
+# Environment
+ENV PATH=/home/quantail/.local/bin:$PATH
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "backend.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "2", \
+     "--loop", "uvloop", \
+     "--access-log"]

@@ -1,0 +1,46 @@
+# deploy/Dockerfile.frontend
+# Multi-stage: Node build → Nginx serve
+
+# ── Stage 1: Build React app ────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+# Build args for environment variables baked at build time
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_WS_URL=ws://localhost:8000/ws/trading
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+
+# Install dependencies (cached layer)
+COPY package.json package-lock.json* ./
+RUN npm ci --prefer-offline
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+# ── Stage 2: Nginx serve ─────────────────────────────────────────────────────
+FROM nginx:1.25-alpine AS runtime
+
+# Remove default Nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom Nginx config
+COPY ../deploy/nginx.conf /etc/nginx/conf.d/quantail.conf
+
+# Copy built assets
+COPY --from=builder /build/dist /usr/share/nginx/html
+
+# Security headers config
+RUN echo 'add_header X-Frame-Options "SAMEORIGIN";' >> /etc/nginx/conf.d/quantail.conf && \
+    echo 'add_header X-Content-Type-Options "nosniff";' >> /etc/nginx/conf.d/quantail.conf && \
+    echo 'add_header X-XSS-Protection "1; mode=block";' >> /etc/nginx/conf.d/quantail.conf && \
+    echo 'add_header Referrer-Policy "strict-origin-when-cross-origin";' >> /etc/nginx/conf.d/quantail.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:80 || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
