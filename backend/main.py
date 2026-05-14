@@ -38,6 +38,8 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 import uvicorn
@@ -59,7 +61,7 @@ from backend.agent_manager import agent_manager
 # ── Config ─────────────────────────────────────────────────────────────────
 ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:5173"
+    "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173"
 ).split(",")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
@@ -586,7 +588,7 @@ app.add_middleware(
 if ENVIRONMENT == "production":
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["quantail.ai", "*.quantail.ai", "localhost"],
+        allowed_hosts=["quantail.ai", "*.quantail.ai", "localhost", "*.railway.app", "*.up.railway.app"],
     )
 
 
@@ -1020,6 +1022,18 @@ async def ws_trading(websocket: WebSocket, token: str = ""):
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.0.0", "environment": ENVIRONMENT}
+
+
+# ── Serve React SPA (production) ────────────────────────────────────────────
+_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+if os.path.isdir(_dist):
+    _assets = os.path.join(_dist, "assets")
+    if os.path.isdir(_assets):
+        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        return FileResponse(os.path.join(_dist, "index.html"))
 
 
 if __name__ == "__main__":

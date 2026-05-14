@@ -3,7 +3,10 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useTradingStore } from '../store/tradingStore';
 import { WebSocketMessage } from '../types';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/trading';
+const WS_URL = import.meta.env.VITE_WS_URL || (() => {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${window.location.host}/ws/trading`;
+})();
 
 export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);

@@ -1,7 +1,8 @@
 // src/lib/api.ts
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Empty string → relative URLs (same host, used in production Docker build)
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 function createApiClient(): AxiosInstance {
   const client = axios.create({
