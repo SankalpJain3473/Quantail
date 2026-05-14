@@ -1,4 +1,4 @@
-# Quantail — Distributional Quantum RL for Dynamic Hedging
+# Quantail - Distributional Quantum RL for Dynamic Hedging
 **Founders:** Sankalp Jain & Veronica Koval | Columbia University 
 Link - https://perpetual-truth-production-8a5f.up.railway.app
 Username: admin
